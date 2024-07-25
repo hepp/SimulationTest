@@ -97,8 +97,11 @@ class Simulation {
 
     public run(): void {
         for (let i = 0; i < this.periods; i++) {
+            console.log(`Period ${i + 1}:`);
+
             // Update solar intensity
             this.simulateSunActivity();
+            console.log(`Solar Intensity: ${this.environment.getSolarEnergy()} units`);
 
             // Solar panel absorbs energy
             this.solarPanel.absorbEnergy(this.environment);
@@ -109,6 +112,8 @@ class Simulation {
 
             // Apply storage tank losses
             this.storageTank.applyLosses();
+
+            console.log(`Sstored Energy: ${this.storageTank.getStoredEnergy()} units\n`);
         }
     }
 }
