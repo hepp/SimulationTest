@@ -52,23 +52,48 @@ class Pump {
 
 class StorageTank {
     private storedEnergy: number;
-    private lossFactor: number;
+    private temperature: number;
+    private heatLossRate: number;
+    private waterMass: number;
+    private ambientTemperature: number;
 
-    constructor(lossFactor: number) {
+    constructor(heatLossRate: number, waterMass: number, initialTemperature: number, ambientTemperature: number) {
         this.storedEnergy = 0;
-        this.lossFactor = lossFactor;
+        this.temperature = initialTemperature;
+        this.heatLossRate = heatLossRate;
+        this.waterMass = waterMass;
+        this.ambientTemperature = ambientTemperature;
     }
 
     public storeEnergy(energy: number): void {
         this.storedEnergy += energy;
+        this.updateTemperature();
     }
 
     public getStoredEnergy(): number {
         return this.storedEnergy;
     }
 
-    public applyLosses(): void {
-        this.storedEnergy -= this.storedEnergy * this.lossFactor;
+    public applyHeatLoss(): void {
+        const heatLoss = this.heatLossRate * (this.temperature - this.ambientTemperature);
+        this.storedEnergy -= heatLoss;
+        this.updateTemperature();
+    }
+
+    private updateTemperature(): void {
+        this.temperature = this.storedEnergy / (this.waterMass * SPECIFIC_HEAT_CAPACITY);
+    }
+
+    public getTemperature(): number {
+        return this.temperature;
+    }
+
+    public getTemperatureInFahrenheit(): number {
+        return this.temperature * 9 / 5 + 32;
+    }
+
+    public getWaterMassInGallons(): number {
+        return this.waterMass * 0.264172;
     }
 }
 
@@ -110,19 +135,26 @@ class Simulation {
             const energy = this.solarPanel.transferEnergy();
             this.pump.transferEnergy(energy, this.storageTank);
 
-            // Apply storage tank losses
-            this.storageTank.applyLosses();
+            // Apply storage tank heat losses
+            this.storageTank.applyHeatLoss();
 
-            console.log(`Sstored Energy: ${this.storageTank.getStoredEnergy()} units\n`);
+            console.log(`Stored Energy: ${this.storageTank.getStoredEnergy()} units`);
+            console.log(`Tank Temperature: ${this.storageTank.getTemperature()} °C (${this.storageTank.getTemperatureInFahrenheit()} °F)`);
+            console.log(`Water Mass: ${this.storageTank.getWaterMassInGallons()} gallons\n`);
         }
     }
 }
 
+
+// Assuming specific heat capacity of water is 4.186 J/g°C -> https://brainly.com/question/6363778
+const SPECIFIC_HEAT_CAPACITY = 4.186;
+
+// Initialize components
 const environment = new Environment(100); // Initial solar intensity
 const solarPanel = new SolarPanel(0.2, 0.05); // 20% efficiency, 5% loss factor
 const pump = new Pump(0.9); // 90% efficiency
-const storageTank = new StorageTank(0.01); // 1% loss factor
-const simulationPeriods = 10;
+const storageTank = new StorageTank(0.01, 100, 25, 20); // 1% heat loss rate, 100 kg water mass, initial temperature 25°C, ambient temperature 20°C
+const simulationPeriods = 20;
 
 // Create and run simulation
 const simulation = new Simulation(environment, solarPanel, pump, storageTank, simulationPeriods);
