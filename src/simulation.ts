@@ -86,6 +86,31 @@ class Simulation {
         this.storageTank = storageTank;
         this.periods = periods;
     }
+
+    private simulateSunActivity(): void {
+        // Simulate daily solar intensity changes
+        const baseIntensity = 100;
+        const variability = 20;
+        const newIntensity = baseIntensity + (Math.random() - 0.5) * 2 * variability;
+        this.environment.updateSolarIntensity(newIntensity);
+    }
+
+    public run(): void {
+        for (let i = 0; i < this.periods; i++) {
+            // Update solar intensity
+            this.simulateSunActivity();
+
+            // Solar panel absorbs energy
+            this.solarPanel.absorbEnergy(this.environment);
+
+            // Pump transfers energy to storage tank
+            const energy = this.solarPanel.transferEnergy();
+            this.pump.transferEnergy(energy, this.storageTank);
+
+            // Apply storage tank losses
+            this.storageTank.applyLosses();
+        }
+    }
 }
 
 const environment = new Environment(100); // Initial solar intensity
@@ -93,3 +118,7 @@ const solarPanel = new SolarPanel(0.2, 0.05); // 20% efficiency, 5% loss factor
 const pump = new Pump(0.9); // 90% efficiency
 const storageTank = new StorageTank(0.01); // 1% loss factor
 const simulationPeriods = 10;
+
+// Create and run simulation
+const simulation = new Simulation(environment, solarPanel, pump, storageTank, simulationPeriods);
+simulation.run();
