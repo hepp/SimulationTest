@@ -24,7 +24,7 @@ class SolarPanel {
     public absorbEnergy(solarIntensity: number, temperature: number, timeOfDay: number): void {
         // Adjust efficiency based on temperature (standard test condition: 25°C)
         // https://www.solar.com/learn/does-solar-panel-temperature-coefficient-matter/
-        const tempEfficiencyAdjustment = 1 - (temperature - 25) * this.temperatureCoefficient;
+        const tempEfficiencyAdjustment = 1 - (temperature - 25) * (this.temperatureCoefficient * .01);
         const adjustedEfficiency = this.efficiency * tempEfficiencyAdjustment;
 
         // Adjust solar intensity based on time of day (simplified model)
@@ -197,6 +197,7 @@ async function runSimulation() {
     const solarPanelEfficiency = parseFloat((document.getElementById('solarPanelEfficiency') as HTMLInputElement).value);
     const solarPanelEnergy = parseFloat((document.getElementById('solarPanelEnergy') as HTMLInputElement).value);
     const solarPanelLossFactor = parseFloat((document.getElementById('solarPanelLossFactor') as HTMLInputElement).value);
+    const solarPanelCoefficient = parseFloat((document.getElementById('solarPanelCoefficient') as HTMLInputElement).value);
     const pumpEfficiency = parseFloat((document.getElementById('pumpEfficiency') as HTMLInputElement).value);
     const storageTankStoredEnergy = parseFloat((document.getElementById('storageTankStoredEnergy') as HTMLInputElement).value);
     const storageTankTemperature = parseFloat((document.getElementById('storageTankTemperature') as HTMLInputElement).value);
@@ -205,7 +206,7 @@ async function runSimulation() {
     const storageTankAmbientTemperature = parseFloat((document.getElementById('storageTankAmbientTemperature') as HTMLInputElement).value);
 
     // Initialize components with the input values
-    const solarPanel = new SolarPanel(solarPanelEfficiency, solarPanelLossFactor, solarPanelEnergy, 0.0037);
+    const solarPanel = new SolarPanel(solarPanelEfficiency, solarPanelLossFactor, solarPanelEnergy, solarPanelCoefficient);
     const pump = new Pump(pumpEfficiency);
     const storageTank = new StorageTank(storageTankHeatLossRate, storageTankWaterMass, storageTankTemperature, storageTankAmbientTemperature, storageTankStoredEnergy);
     const simulationPeriods = 8; // 8 periods * 3 hours = 24 hours
