@@ -12,15 +12,26 @@ class SolarPanel {
     private efficiency: number;
     private energy: number;
     private lossFactor: number;
+    private temperatureCoefficient: number; // Efficiency loss per degree C above 25°C
 
-    constructor(efficiency: number, lossFactor: number, energy: number) {
+    constructor(efficiency: number, lossFactor: number, energy: number, temperatureCoefficient: number) {
         this.efficiency = efficiency;
         this.energy = energy;
         this.lossFactor = lossFactor;
+        this.temperatureCoefficient = temperatureCoefficient;
     }
 
-    public absorbEnergy(solarIntensity: number): void {
-        this.energy += solarIntensity * this.efficiency;
+    public absorbEnergy(solarIntensity: number, temperature: number, timeOfDay: number): void {
+        // Adjust efficiency based on temperature (standard test condition: 25°C)
+        // https://www.solar.com/learn/does-solar-panel-temperature-coefficient-matter/
+        const tempEfficiencyAdjustment = 1 - (temperature - 25) * this.temperatureCoefficient;
+        const adjustedEfficiency = this.efficiency * tempEfficiencyAdjustment;
+
+        // Adjust solar intensity based on time of day (simplified model)
+        const timeAdjustmentFactor = Math.sin(Math.PI * timeOfDay / 24); // Peaks at noon
+        const adjustedSolarIntensity = solarIntensity * timeAdjustmentFactor;
+
+        this.energy += adjustedSolarIntensity * adjustedEfficiency;
         this.energy -= this.energy * this.lossFactor; // Energy loss
     }
 
@@ -30,6 +41,7 @@ class SolarPanel {
         return energyToTransfer;
     }
 }
+
 
 class Pump {
     private efficiency: number;
@@ -134,7 +146,9 @@ class Simulation {
             for (let i = 0; i < this.periods; i++) {
                 const time = new Date(forecast.list[i].dt * 1000).toString();
                 const clouds = forecast.list[i].clouds.all;
-                const periodNumber = `<strong>Period ${i + 1}: ${time} | Clouds: ${clouds} </strong>`;
+                const temperature = forecast.list[i].main.temp; // Current temperature
+                const timeOfDay = (new Date(forecast.list[i].dt * 1000)).getHours();
+                const periodNumber = `<strong>Period ${i + 1}: ${time} | Clouds: ${clouds} | Temperature: ${temperature}°C</strong>`;
                 this.addResult(`<strong>${periodNumber}</strong>`);
 
                 const reductionFactor = 1 - (clouds / 100);
@@ -144,7 +158,7 @@ class Simulation {
                 this.addResult(solarIntensityDisplay);
 
                 // Solar panel absorbs energy
-                this.solarPanel.absorbEnergy(solarResult);
+                this.solarPanel.absorbEnergy(solarResult, temperature, timeOfDay);
 
                 // Pump transfers energy to storage tank
                 const energy = this.solarPanel.transferEnergy();
@@ -191,7 +205,7 @@ async function runSimulation() {
     const storageTankAmbientTemperature = parseFloat((document.getElementById('storageTankAmbientTemperature') as HTMLInputElement).value);
 
     // Initialize components with the input values
-    const solarPanel = new SolarPanel(solarPanelEfficiency, solarPanelLossFactor, solarPanelEnergy);
+    const solarPanel = new SolarPanel(solarPanelEfficiency, solarPanelLossFactor, solarPanelEnergy, 0.0037);
     const pump = new Pump(pumpEfficiency);
     const storageTank = new StorageTank(storageTankHeatLossRate, storageTankWaterMass, storageTankTemperature, storageTankAmbientTemperature, storageTankStoredEnergy);
     const simulationPeriods = 8; // 8 periods * 3 hours = 24 hours
