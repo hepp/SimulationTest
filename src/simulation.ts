@@ -7,18 +7,19 @@ import axios from 'axios';
 // Assuming specific heat capacity of water is 4.186 J/g°C -> https://brainly.com/question/6363778
 const SPECIFIC_HEAT_CAPACITY = 4.186;
 
-
 class SolarPanel {
     private efficiency: number;
     private energy: number;
     private lossFactor: number;
     private temperatureCoefficient: number; // Efficiency loss per degree C above 25°C
+    private incomingWaterTemperature: number;
 
-    constructor(efficiency: number, lossFactor: number, energy: number, temperatureCoefficient: number) {
+    constructor(efficiency: number, lossFactor: number, energy: number, temperatureCoefficient: number, incomingWaterTemperature: number) {
         this.efficiency = efficiency;
         this.energy = energy;
         this.lossFactor = lossFactor;
         this.temperatureCoefficient = temperatureCoefficient;
+        this.incomingWaterTemperature = incomingWaterTemperature;
     }
 
     public absorbEnergy(solarIntensity: number, temperature: number, timeOfDay: number): void {
@@ -33,15 +34,27 @@ class SolarPanel {
 
         this.energy += adjustedSolarIntensity * adjustedEfficiency;
         this.energy -= this.energy * this.lossFactor; // Energy loss
+        this.updateWaterTemperature(adjustedSolarIntensity * adjustedEfficiency);
     }
 
-    public transferEnergy(): number {
+    private updateWaterTemperature(energyAbsorbed: number): void {
+        const waterMass = 1; // Assuming 1 kg of water for simplicity
+        const temperatureIncrease = energyAbsorbed / (waterMass * SPECIFIC_HEAT_CAPACITY);
+        this.incomingWaterTemperature += temperatureIncrease;
+    }
+
+    public transferEnergy(): { energy: number; waterTemperature: number } {
         const energyToTransfer = this.energy;
+        const heatedWaterTemperature = this.incomingWaterTemperature;
         this.energy = 0; // Reset energy after transfer
-        return energyToTransfer;
+        this.incomingWaterTemperature = 0; // Reset water temperature after transfer
+        return { energy: energyToTransfer, waterTemperature: heatedWaterTemperature };
+    }
+
+    public setIncomingWaterTemperature(temperature: number): void {
+        this.incomingWaterTemperature = temperature;
     }
 }
-
 
 class Pump {
     private efficiency: number;
@@ -50,9 +63,9 @@ class Pump {
         this.efficiency = efficiency;
     }
 
-    public transferEnergy(energy: number, storageTank: StorageTank): void {
+    public transferEnergy(energy: number, waterTemperature: number, storageTank: StorageTank): void {
         const transferredEnergy = energy * this.efficiency;
-        storageTank.storeEnergy(transferredEnergy);
+        storageTank.storeEnergy(transferredEnergy, waterTemperature);
     }
 }
 
@@ -71,9 +84,9 @@ class StorageTank {
         this.ambientTemperature = ambientTemperature;
     }
 
-    public storeEnergy(energy: number): void {
+    public storeEnergy(energy: number, waterTemperature: number): void {
         this.storedEnergy += energy;
-        this.updateTemperature();
+        this.updateTemperature(waterTemperature);
     }
 
     public getStoredEnergy(): number {
@@ -88,11 +101,16 @@ class StorageTank {
         this.updateTemperature();
     }
 
-    private updateTemperature(): void {
+    private updateTemperature(waterTemperature?: number): void {
         if (this.waterMass > 0) {
-            this.temperature = this.storedEnergy / (this.waterMass * SPECIFIC_HEAT_CAPACITY);
+            if (waterTemperature !== undefined) {
+                // Weighted average of the tank temperature and incoming water temperature
+                this.temperature = (this.storedEnergy + this.waterMass * SPECIFIC_HEAT_CAPACITY * this.temperature) / (this.waterMass * SPECIFIC_HEAT_CAPACITY);
+            } else {
+                this.temperature = this.storedEnergy / (this.waterMass * SPECIFIC_HEAT_CAPACITY);
+            }
         } else {
-            this.temperature = this.ambientTemperature; // Default to ambient if no water
+            this.temperature = this.ambientTemperature;
         }
     }
 
@@ -169,11 +187,14 @@ class Simulation {
                 this.solarPanel.absorbEnergy(solarResult, temperature, timeOfDay);
 
                 // Pump transfers energy to storage tank
-                const energy = this.solarPanel.transferEnergy();
-                this.pump.transferEnergy(energy, this.storageTank);
+                const { energy, waterTemperature } = this.solarPanel.transferEnergy();
+                this.pump.transferEnergy(energy, waterTemperature, this.storageTank);
 
                 // Apply storage tank heat losses
                 this.storageTank.applyHeatLoss();
+
+                // Set the incoming water temperature for the next cycle
+                this.solarPanel.setIncomingWaterTemperature(this.storageTank.getTemperature());
 
                 // Output Results
                 const storedEnergy = ` Stored Energy: ${this.storageTank.getStoredEnergy()} units`;
@@ -213,7 +234,7 @@ async function runSimulation() {
     const storageTankAmbientTemperature = parseFloat((document.getElementById('storageTankAmbientTemperature') as HTMLInputElement).value);
 
     // Initialize components with the input values
-    const solarPanel = new SolarPanel(solarPanelEfficiency, solarPanelLossFactor, solarPanelEnergy, solarPanelCoefficient);
+    const solarPanel = new SolarPanel(solarPanelEfficiency, solarPanelLossFactor, solarPanelEnergy, solarPanelCoefficient, storageTankTemperature);
     const pump = new Pump(pumpEfficiency);
     const storageTank = new StorageTank(storageTankHeatLossRate, storageTankWaterMass, storageTankTemperature, storageTankAmbientTemperature, storageTankStoredEnergy);
     const simulationPeriods = 8; // 8 periods * 3 hours = 24 hours
