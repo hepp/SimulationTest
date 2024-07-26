@@ -7,6 +7,9 @@ import axios from 'axios';
 // Assuming specific heat capacity of water is 4.186 J/g°C -> https://brainly.com/question/6363778
 const SPECIFIC_HEAT_CAPACITY = 4.186;
 
+// Conversion factor
+const KG_TO_GALLONS = 0.264172;
+
 // How many hours between each weather update (based on data provided by the OpenWeatherMap API)
 const WEATHER_HOUR_RATE = 3;
 
@@ -138,6 +141,10 @@ class StorageTank {
     public getTemperatureInFahrenheit(): number {
         return this.temperature * 9 / 5 + 32;
     }
+
+    public getWaterMassInGallons(): number {
+        return this.waterMass * KG_TO_GALLONS;
+    }
 }
 
 //////////////////////////////////////////////////////////////////////
@@ -212,7 +219,7 @@ class Simulation {
                 // Output Results
                 const storedEnergy = ` Stored Energy: ${this.storageTank.getStoredEnergy()} J`;
                 const temperatureF = `(${this.storageTank.getTemperatureInFahrenheit()} °F)`;
-                const waterMass = ` Water Mass: ${this.storageTank.getWaterMass()} kg`;
+                const waterMass = ` Water Mass: ${this.storageTank.getWaterMass()} kg (${this.storageTank.getWaterMassInGallons().toFixed(2)} gallons)`;
                 const temperatureC = ` -> Tank Temperature: ${this.storageTank.getTemperature()} °C`;
 
                 this.addResult(storedEnergy);
