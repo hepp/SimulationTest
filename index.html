@@ -33,12 +33,17 @@
         <br />
 
         <div class="input-group">
-            <label for="solarIntensity">Solar Intensity:</label>
-            <input type="number" id="solarIntensity" value="1000">
+            <label for="solarIrradiance">Solar Irradiance Rate (%):</label>
+            <input type="number" id="solarIrradiance" value=".5">
         </div>
 
         <div class="input-group">
-            <label for="solarPanelEnergy">Solar Panel | Initial Energy:</label>
+            <label for="solarPanelArea">Solar Panel | Area (m²):</label>
+            <input type="number" id="solarPanelArea" value="15">
+        </div>
+
+        <div class="input-group">
+            <label for="solarPanelEnergy">Solar Panel | Initial Energy (J):</label>
             <input type="number" id="solarPanelEnergy" value="0">
         </div>
 
@@ -61,11 +66,11 @@
 
         <div class="input-group">
             <label for="storageTankWaterMass">Storage Tank | Water Mass (kg):</label>
-            <input type="number" id="storageTankWaterMass" value="100">
+            <input type="number" id="storageTankWaterMass" value="1000">
         </div>
 
         <div class="input-group">
-            <label for="storageTankStoredEnergy">Storage Tank | Initial Stored Energy:</label>
+            <label for="storageTankStoredEnergy">Storage Tank | Initial Stored Energy (J):</label>
             <input type="number" id="storageTankStoredEnergy" value="0">
         </div>
 

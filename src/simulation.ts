@@ -7,34 +7,46 @@ import axios from 'axios';
 // Assuming specific heat capacity of water is 4.186 J/g°C -> https://brainly.com/question/6363778
 const SPECIFIC_HEAT_CAPACITY = 4.186;
 
+// How many hours between each weather update (based on data provided by the OpenWeatherMap API)
+const WEATHER_HOUR_RATE = 3;
+
+// How many total hours we are simulating
+const SIM_TOTAL_HOURS = 24;
+
 class SolarPanel {
     private efficiency: number;
     private energy: number;
     private lossFactor: number;
     private temperatureCoefficient: number; // Efficiency loss per degree C above 25°C
     private incomingWaterTemperature: number;
+    private area: number;
 
-    constructor(efficiency: number, lossFactor: number, energy: number, temperatureCoefficient: number, incomingWaterTemperature: number) {
+    constructor(efficiency: number, lossFactor: number, energy: number, temperatureCoefficient: number, incomingWaterTemperature: number, area: number) {
         this.efficiency = efficiency;
         this.energy = energy;
         this.lossFactor = lossFactor;
         this.temperatureCoefficient = temperatureCoefficient;
         this.incomingWaterTemperature = incomingWaterTemperature;
+        this.area = area;
     }
 
-    public absorbEnergy(solarIntensity: number, temperature: number, timeOfDay: number): void {
+    public absorbEnergy(solarIrradiance: number, temperature: number, timeOfDay: number): void {
         // Adjust efficiency based on temperature (standard test condition: 25°C)
-        // https://www.solar.com/learn/does-solar-panel-temperature-coefficient-matter/
-        const tempEfficiencyAdjustment = 1 - (temperature - 25) * (this.temperatureCoefficient * .01);
+        const tempEfficiencyAdjustment = 1 - (temperature - 25) * (this.temperatureCoefficient * 0.01);
         const adjustedEfficiency = this.efficiency * tempEfficiencyAdjustment;
 
-        // Adjust solar intensity based on time of day (simplified model)
-        const timeAdjustmentFactor = Math.sin(Math.PI * timeOfDay / 24); // Peaks at noon
-        const adjustedSolarIntensity = solarIntensity * timeAdjustmentFactor;
+        // Adjust solar irradiance based on time of day (simplified model)
+        const timeAdjustmentFactor = Math.sin(Math.PI * timeOfDay / SIM_TOTAL_HOURS); // Peaks at noon
+        const adjustedSolarIrradiance = solarIrradiance * timeAdjustmentFactor;
 
-        this.energy += adjustedSolarIntensity * adjustedEfficiency;
+        // Calculate power absorbed (W) and convert to energy (J) over 3 hours
+        const powerAbsorbed = adjustedSolarIrradiance * this.area * adjustedEfficiency;
+        const secondsInHour = 3600;
+        const energyAbsorbed = powerAbsorbed * secondsInHour * WEATHER_HOUR_RATE;
+
+        this.energy += energyAbsorbed;
         this.energy -= this.energy * this.lossFactor; // Energy loss
-        this.updateWaterTemperature(adjustedSolarIntensity * adjustedEfficiency);
+        this.updateWaterTemperature(energyAbsorbed);
     }
 
     private updateWaterTemperature(energyAbsorbed: number): void {
@@ -103,11 +115,12 @@ class StorageTank {
 
     private updateTemperature(waterTemperature?: number): void {
         if (this.waterMass > 0) {
+            const waterMassCapacity = this.waterMass * SPECIFIC_HEAT_CAPACITY;
             if (waterTemperature !== undefined) {
-                // Weighted average of the tank temperature and incoming water temperature
-                this.temperature = (this.storedEnergy + this.waterMass * SPECIFIC_HEAT_CAPACITY * this.temperature) / (this.waterMass * SPECIFIC_HEAT_CAPACITY);
+                const totalEnergy = this.storedEnergy + waterMassCapacity;
+                this.temperature = totalEnergy / waterMassCapacity;
             } else {
-                this.temperature = this.storedEnergy / (this.waterMass * SPECIFIC_HEAT_CAPACITY);
+                this.temperature = this.storedEnergy / waterMassCapacity;
             }
         } else {
             this.temperature = this.ambientTemperature;
@@ -132,15 +145,15 @@ class StorageTank {
 //////////////////////////////////////////////////////////////////////
 
 class Simulation {
-    private solarIntensity: number;
+    private solarIrradiance: number;
     private solarPanel: SolarPanel;
     private pump: Pump;
     private storageTank: StorageTank;
     private periods: number;
     private resultsElement: HTMLElement;
 
-    constructor(solarIntensity: number, solarPanel: SolarPanel, pump: Pump, storageTank: StorageTank, periods: number, resultsElementId: string) {
-        this.solarIntensity = solarIntensity;
+    constructor(solarIrradiance: number, solarPanel: SolarPanel, pump: Pump, storageTank: StorageTank, periods: number, resultsElementId: string) {
+        this.solarIrradiance = solarIrradiance;
         this.solarPanel = solarPanel;
         this.pump = pump;
         this.storageTank = storageTank;
@@ -177,14 +190,14 @@ class Simulation {
                 const periodConditions = `<strong>Period ${i + 1}: ${time} | Clouds: ${clouds} | Temperature: ${temperature}°C</strong>`;
                 this.addResult(`<strong>${periodConditions}</strong>`);
 
-                // Calculate solar rate based on cloud cover
+                // Calculate solar irradiance based on cloud cover
                 const reductionFactor = 1 - (clouds / 100);
-                const solarResult = this.solarIntensity * reductionFactor;
-                const solarIntensityDisplay = ` Solar Input [Intensity: ${this.solarIntensity}]: ${solarResult} units`;
-                this.addResult(solarIntensityDisplay);
+                const adjustedSolarIrradiance = this.solarIrradiance * reductionFactor;
+                const solarIrradianceDisplay = ` Solar Irradiance: ${adjustedSolarIrradiance} W/m²`;
+                this.addResult(solarIrradianceDisplay);
 
                 // Solar panel absorbs energy
-                this.solarPanel.absorbEnergy(solarResult, temperature, timeOfDay);
+                this.solarPanel.absorbEnergy(adjustedSolarIrradiance, temperature, timeOfDay);
 
                 // Pump transfers energy to storage tank
                 const { energy, waterTemperature } = this.solarPanel.transferEnergy();
@@ -197,7 +210,7 @@ class Simulation {
                 this.solarPanel.setIncomingWaterTemperature(this.storageTank.getTemperature());
 
                 // Output Results
-                const storedEnergy = ` Stored Energy: ${this.storageTank.getStoredEnergy()} units`;
+                const storedEnergy = ` Stored Energy: ${this.storageTank.getStoredEnergy()} J`;
                 const temperatureF = `(${this.storageTank.getTemperatureInFahrenheit()} °F)`;
                 const waterMass = ` Water Mass: ${this.storageTank.getWaterMass()} kg`;
                 const temperatureC = ` -> Tank Temperature: ${this.storageTank.getTemperature()} °C`;
@@ -221,11 +234,12 @@ class Simulation {
 async function runSimulation() {
     // Read input values
     const zipCode = (document.getElementById('zipCode') as HTMLInputElement).value;
-    const solarIntensity = parseFloat((document.getElementById('solarIntensity') as HTMLInputElement).value);
+    const solarIrradiance = parseFloat((document.getElementById('solarIrradiance') as HTMLInputElement).value);
     const solarPanelEfficiency = parseFloat((document.getElementById('solarPanelEfficiency') as HTMLInputElement).value);
     const solarPanelEnergy = parseFloat((document.getElementById('solarPanelEnergy') as HTMLInputElement).value);
     const solarPanelLossFactor = parseFloat((document.getElementById('solarPanelLossFactor') as HTMLInputElement).value);
     const solarPanelCoefficient = parseFloat((document.getElementById('solarPanelCoefficient') as HTMLInputElement).value);
+    const solarPanelArea = parseFloat((document.getElementById('solarPanelArea') as HTMLInputElement).value);
     const pumpEfficiency = parseFloat((document.getElementById('pumpEfficiency') as HTMLInputElement).value);
     const storageTankStoredEnergy = parseFloat((document.getElementById('storageTankStoredEnergy') as HTMLInputElement).value);
     const storageTankTemperature = parseFloat((document.getElementById('storageTankTemperature') as HTMLInputElement).value);
@@ -234,14 +248,14 @@ async function runSimulation() {
     const storageTankAmbientTemperature = parseFloat((document.getElementById('storageTankAmbientTemperature') as HTMLInputElement).value);
 
     // Initialize components with the input values
-    const solarPanel = new SolarPanel(solarPanelEfficiency, solarPanelLossFactor, solarPanelEnergy, solarPanelCoefficient, storageTankTemperature);
+    const solarPanel = new SolarPanel(solarPanelEfficiency, solarPanelLossFactor, solarPanelEnergy, solarPanelCoefficient, storageTankTemperature, solarPanelArea);
     const pump = new Pump(pumpEfficiency);
     const storageTank = new StorageTank(storageTankHeatLossRate, storageTankWaterMass, storageTankTemperature, storageTankAmbientTemperature, storageTankStoredEnergy);
-    const simulationPeriods = 8; // 8 periods * 3 hours = 24 hours
+    const simulationPeriods = SIM_TOTAL_HOURS / WEATHER_HOUR_RATE;
 
     // Create and run simulation
     const openWeatherMapApiKey = '52fbeafbac693adcdacdf9056189e190';
-    const simulation = new Simulation(solarIntensity, solarPanel, pump, storageTank, simulationPeriods, 'simulation-results');
+    const simulation = new Simulation(solarIrradiance, solarPanel, pump, storageTank, simulationPeriods, 'simulation-results');
     await simulation.run(zipCode, openWeatherMapApiKey);
 }
 
