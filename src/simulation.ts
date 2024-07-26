@@ -1,3 +1,6 @@
+// Assuming specific heat capacity of water is 4.186 J/g°C -> https://brainly.com/question/6363778
+const SPECIFIC_HEAT_CAPACITY = 4.186;
+
 class Environment {
     private solarIntensity: number;
 
@@ -19,9 +22,9 @@ class SolarPanel {
     private energy: number;
     private lossFactor: number;
 
-    constructor(efficiency: number, lossFactor: number) {
+    constructor(efficiency: number, lossFactor: number, energy: number) {
         this.efficiency = efficiency;
-        this.energy = 0;
+        this.energy = energy;
         this.lossFactor = lossFactor;
     }
 
@@ -57,8 +60,8 @@ class StorageTank {
     private waterMass: number;
     private ambientTemperature: number;
 
-    constructor(heatLossRate: number, waterMass: number, initialTemperature: number, ambientTemperature: number) {
-        this.storedEnergy = 0;
+    constructor(heatLossRate: number, waterMass: number, initialTemperature: number, ambientTemperature: number, storedEnergy: number) {
+        this.storedEnergy = storedEnergy;
         this.temperature = initialTemperature;
         this.heatLossRate = heatLossRate;
         this.waterMass = waterMass;
@@ -119,9 +122,10 @@ class Simulation {
     }
 
     private simulateSunActivity(): void {
-        // Simulate daily solar intensity changes
+        // Simulate daily solar intensity changes: TODO - pull in realtime weather data
         const baseIntensity = 100;
         const variability = 20;
+
         const newIntensity = baseIntensity + (Math.random() - 0.5) * 2 * variability;
         this.environment.updateSolarIntensity(newIntensity);
     }
@@ -134,6 +138,7 @@ class Simulation {
     }
 
     public run(): void {
+        this.resultsElement.innerHTML = ''; // Clear previous results
         for (let i = 0; i < this.periods; i++) {
             const periodNumber = `Period ${i + 1}:`;
             this.addResult(`<strong>${periodNumber}</strong>`);
@@ -155,27 +160,42 @@ class Simulation {
 
             const storedEnergy = `Stored Energy: ${this.storageTank.getStoredEnergy()} units`;
             const temperatureC = `Tank Temperature: ${this.storageTank.getTemperature()} °C`;
-            const waterMass = `Water Mass: ${this.storageTank.getWaterMassInGallons()} gallons`;
             const temperatureF = `(${this.storageTank.getTemperatureInFahrenheit()} °F)`;
+            const waterMass = `Water Mass: ${this.storageTank.getWaterMassInGallons()} gallons`;
 
             this.addResult(storedEnergy);
             this.addResult(waterMass);
             this.addResult(`${temperatureC} ${temperatureF}`);
-            this.addResult('<br>');
+            this.addResult('<br>'); // Add a line break for better readability
         }
     }
 }
 
-// Assuming specific heat capacity of water is 4.186 J/g°C -> https://brainly.com/question/6363778
-const SPECIFIC_HEAT_CAPACITY = 4.186;
+// Function to read input values and run the simulation
+function runSimulation() {
+    const solarIntensity = parseFloat((document.getElementById('solarIntensity') as HTMLInputElement).value);
+    const solarPanelEfficiency = parseFloat((document.getElementById('solarPanelEfficiency') as HTMLInputElement).value);
+    const solarPanelEnergy = parseFloat((document.getElementById('solarPanelEnergy') as HTMLInputElement).value);
+    const solarPanelLossFactor = parseFloat((document.getElementById('solarPanelLossFactor') as HTMLInputElement).value);
+    const pumpEfficiency = parseFloat((document.getElementById('pumpEfficiency') as HTMLInputElement).value);
+    const storageTankStoredEnergy = parseFloat((document.getElementById('storageTankStoredEnergy') as HTMLInputElement).value);
+    const storageTankTemperature = parseFloat((document.getElementById('storageTankTemperature') as HTMLInputElement).value);
+    const storageTankHeatLossRate = parseFloat((document.getElementById('storageTankHeatLossRate') as HTMLInputElement).value);
+    const storageTankWaterMass = parseFloat((document.getElementById('storageTankWaterMass') as HTMLInputElement).value);
+    const storageTankAmbientTemperature = parseFloat((document.getElementById('storageTankAmbientTemperature') as HTMLInputElement).value);
 
-// Initialize components
-const environment = new Environment(100); // Initial solar intensity
-const solarPanel = new SolarPanel(0.2, 0.05); // 20% efficiency, 5% loss factor
-const pump = new Pump(0.9); // 90% efficiency
-const storageTank = new StorageTank(0.01, 100, 25, 20); // 1% heat loss rate, 100 kg water mass, initial temperature 25°C, ambient temperature 20°C
-const simulationPeriods = 20;
+    // Initialize components with the input values
+    const environment = new Environment(solarIntensity);
+    const solarPanel = new SolarPanel(solarPanelEfficiency, solarPanelLossFactor, solarPanelEnergy);
+    const pump = new Pump(pumpEfficiency);
+    const storageTank = new StorageTank(storageTankHeatLossRate, storageTankWaterMass, storageTankTemperature, storageTankAmbientTemperature, storageTankStoredEnergy);
+    const simulationPeriods = 10; // Fixed number of periods for now
 
-// Create and run simulation
-const simulation = new Simulation(environment, solarPanel, pump, storageTank, simulationPeriods, 'simulation-results');
-simulation.run();
+    // Create and run simulation
+    const simulation = new Simulation(environment, solarPanel, pump, storageTank, simulationPeriods, 'simulation-results');
+    simulation.run();
+}
+
+
+// Expose the function to the global scope
+(window as any).runSimulation = runSimulation;

@@ -14,11 +14,81 @@
         .simulation-result {
             margin-bottom: 20px;
         }
+
+        .input-group {
+            margin-bottom: 10px;
+        }
     </style>
 </head>
 
 <body>
-    <h1>Simulation Results</h1>
+    <h1>Simulation Settings: </h1>
+
+    <div>
+        <div class="input-group">
+            <label for="solarIntensity">Solar | Intensity:</label>
+            <input type="number" id="solarIntensity" value="100">
+        </div>
+
+        <div class="input-group">
+            <label for="solarPanelEfficiency">Solar Panel | Efficiency:</label>
+            <input type="number" id="solarPanelEfficiency" value="0.2" step="0.01">
+        </div>
+
+        <div class="input-group">
+            <label for="solarPanelEnergy">Solar Panel | Initial Energy:</label>
+            <input type="number" id="solarPanelEnergy" value="0">
+        </div>
+
+        <div class="input-group">
+            <label for="solarPanelLossFactor">Solar Panel | Loss Factor:</label>
+            <input type="number" id="solarPanelLossFactor" value="0.05" step="0.01">
+        </div>
+
+        <br />
+
+        <div class="input-group">
+            <label for="storageTankStoredEnergy">Storage Tank | Initial Stored Energy:</label>
+            <input type="number" id="storageTankStoredEnergy" value="0">
+        </div>
+
+        <div class="input-group">
+            <label for="storageTankTemperature">Storage Tank | Temperature (°C):</label>
+            <input type="number" id="storageTankTemperature" value="25">
+        </div>
+
+        <div class="input-group">
+            <label for="storageTankHeatLossRate">Storage Tank | Heat Loss Rate:</label>
+            <input type="number" id="storageTankHeatLossRate" value="0.01" step="0.01">
+        </div>
+
+        <div class="input-group">
+            <label for="storageTankWaterMass">Storage Tank | Water Mass (kg):</label>
+            <input type="number" id="storageTankWaterMass" value="1000">
+        </div>
+
+        <div class="input-group">
+            <label for="storageTankAmbientTemperature">Storage Tank | Ambient Temperature (°C):</label>
+            <input type="number" id="storageTankAmbientTemperature" value="20">
+        </div>
+
+        <br />
+
+        <div class="input-group">
+            <label for="pumpEfficiency">Pump | Efficiency:</label>
+            <input type="number" id="pumpEfficiency" value="0.9" step="0.01">
+        </div>
+    </div>
+
+    <br />
+
+    <button onclick="runSimulation()">Run Simulation</button>
+
+    <br />
+    <hr>
+
+    <h1>Results: </h1>
+
     <pre id="simulation-results"></pre>
 
     <script src="dist/simulation.js"></script>
