@@ -103,13 +103,19 @@ class Simulation {
     private pump: Pump;
     private storageTank: StorageTank;
     private periods: number;
+    private resultsElement: HTMLElement;
 
-    constructor(environment: Environment, solarPanel: SolarPanel, pump: Pump, storageTank: StorageTank, periods: number) {
+    constructor(environment: Environment, solarPanel: SolarPanel, pump: Pump, storageTank: StorageTank, periods: number, resultsElementId: string) {
         this.environment = environment;
         this.solarPanel = solarPanel;
         this.pump = pump;
         this.storageTank = storageTank;
         this.periods = periods;
+        const element = document.getElementById(resultsElementId);
+        if (!element) {
+            throw new Error(`Element with id ${resultsElementId} not found`);
+        }
+        this.resultsElement = element;
     }
 
     private simulateSunActivity(): void {
@@ -120,13 +126,22 @@ class Simulation {
         this.environment.updateSolarIntensity(newIntensity);
     }
 
+    private addResult(content: string): void {
+        const resultDiv = document.createElement('div');
+        resultDiv.className = 'simulation-result';
+        resultDiv.innerHTML = content;
+        this.resultsElement.appendChild(resultDiv);
+    }
+
     public run(): void {
         for (let i = 0; i < this.periods; i++) {
-            console.log(`Period ${i + 1}:`);
+            const periodNumber = `Period ${i + 1}:`;
+            this.addResult(`<strong>${periodNumber}</strong>`);
 
             // Update solar intensity
             this.simulateSunActivity();
-            console.log(`Solar Intensity: ${this.environment.getSolarEnergy()} units`);
+            const solarIntensity = `Solar Intensity: ${this.environment.getSolarEnergy()} units`;
+            this.addResult(solarIntensity);
 
             // Solar panel absorbs energy
             this.solarPanel.absorbEnergy(this.environment);
@@ -138,13 +153,18 @@ class Simulation {
             // Apply storage tank heat losses
             this.storageTank.applyHeatLoss();
 
-            console.log(`Stored Energy: ${this.storageTank.getStoredEnergy()} units`);
-            console.log(`Tank Temperature: ${this.storageTank.getTemperature()} °C (${this.storageTank.getTemperatureInFahrenheit()} °F)`);
-            console.log(`Water Mass: ${this.storageTank.getWaterMassInGallons()} gallons\n`);
+            const storedEnergy = `Stored Energy: ${this.storageTank.getStoredEnergy()} units`;
+            const temperatureC = `Tank Temperature: ${this.storageTank.getTemperature()} °C`;
+            const waterMass = `Water Mass: ${this.storageTank.getWaterMassInGallons()} gallons`;
+            const temperatureF = `(${this.storageTank.getTemperatureInFahrenheit()} °F)`;
+
+            this.addResult(storedEnergy);
+            this.addResult(waterMass);
+            this.addResult(`${temperatureC} ${temperatureF}`);
+            this.addResult('<br>');
         }
     }
 }
-
 
 // Assuming specific heat capacity of water is 4.186 J/g°C -> https://brainly.com/question/6363778
 const SPECIFIC_HEAT_CAPACITY = 4.186;
@@ -157,5 +177,5 @@ const storageTank = new StorageTank(0.01, 100, 25, 20); // 1% heat loss rate, 10
 const simulationPeriods = 20;
 
 // Create and run simulation
-const simulation = new Simulation(environment, solarPanel, pump, storageTank, simulationPeriods);
+const simulation = new Simulation(environment, solarPanel, pump, storageTank, simulationPeriods, 'simulation-results');
 simulation.run();
