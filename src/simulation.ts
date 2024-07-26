@@ -83,11 +83,17 @@ class StorageTank {
     public applyHeatLoss(): void {
         const heatLoss = this.heatLossRate * (this.temperature - this.ambientTemperature);
         this.storedEnergy -= heatLoss;
+        this.storedEnergy = Math.max(this.storedEnergy, 0);
+
         this.updateTemperature();
     }
 
     private updateTemperature(): void {
-        this.temperature = this.storedEnergy / (this.waterMass * SPECIFIC_HEAT_CAPACITY);
+        if (this.waterMass > 0) {
+            this.temperature = this.storedEnergy / (this.waterMass * SPECIFIC_HEAT_CAPACITY);
+        } else {
+            this.temperature = this.ambientTemperature; // Default to ambient if no water
+        }
     }
 
     public getTemperature(): number {
@@ -146,14 +152,16 @@ class Simulation {
             for (let i = 0; i < this.periods; i++) {
                 const time = new Date(forecast.list[i].dt * 1000).toString();
                 const clouds = forecast.list[i].clouds.all;
-                const temperature = forecast.list[i].main.temp; // Current temperature
+                const temperature = forecast.list[i].main.temp;
                 const timeOfDay = (new Date(forecast.list[i].dt * 1000)).getHours();
-                const periodNumber = `<strong>Period ${i + 1}: ${time} | Clouds: ${clouds} | Temperature: ${temperature}°C</strong>`;
-                this.addResult(`<strong>${periodNumber}</strong>`);
 
+                // Report conditions
+                const periodConditions = `<strong>Period ${i + 1}: ${time} | Clouds: ${clouds} | Temperature: ${temperature}°C</strong>`;
+                this.addResult(`<strong>${periodConditions}</strong>`);
+
+                // Calculate solar rate based on cloud cover
                 const reductionFactor = 1 - (clouds / 100);
                 const solarResult = this.solarIntensity * reductionFactor;
-
                 const solarIntensityDisplay = ` Solar Input [Intensity: ${this.solarIntensity}]: ${solarResult} units`;
                 this.addResult(solarIntensityDisplay);
 
@@ -190,7 +198,6 @@ class Simulation {
 //////////////////////////////////////////////////////////////////////
 
 async function runSimulation() {
-
     // Read input values
     const zipCode = (document.getElementById('zipCode') as HTMLInputElement).value;
     const solarIntensity = parseFloat((document.getElementById('solarIntensity') as HTMLInputElement).value);
